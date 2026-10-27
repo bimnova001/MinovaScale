@@ -36,7 +36,7 @@ pipeline headroom, then off for the real play session.
 
 | symptom | cause / fix |
 |---|---|
-| presenter shows the desktop recursively | DDA captures what is on screen — move the presenter of the game's window until it no longer overlaps; overlay mode avoids this (needs WGC) |
+| presenter shows the desktop recursively | DDA captures what is on screen — the app **auto-places (and if needed auto-scales) the presenter in the free strip next to the game**, so this only happens if you later drag the presenter back over the game; move it away |
 | "Overlay requested but unavailable" | this OS build's WGC is broken (26200.9457 Unknown) — side window fallback is automatic; update Windows to get overlay |
 | black output, target fps 0 | the game was minimized at start — the tool now auto-restores iconic targets; avoid minimizing afterwards (DDA can't see a minimized window) |
 | log shows `force-res: client ...` | the game client area was resized to the chosen render size; original size is restored when the session ends |

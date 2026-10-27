@@ -215,6 +215,77 @@ ClientCrop queryClientCrop(HWND hwnd, unsigned frameW, unsigned frameH)
     return c;
 }
 
+/// Side-window (DDA) placement: the duplication backend sees the WHOLE
+/// desktop, so the presenter window must not overlap the game's rect or it
+/// will capture its own output (Droste recursion). Place it in the largest
+/// adjacent free strip (right / left / bottom), else leave and warn.
+void placeAvoidingTarget(HWND presenterHwnd, const RECT& avoid)
+{
+    const POINT c{(avoid.left + avoid.right) / 2,
+                  (avoid.top + avoid.bottom) / 2};
+    HMONITOR mon = MonitorFromPoint(c, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi{};
+    mi.cbSize = sizeof(mi);
+    if (!GetMonitorInfoW(mon, &mi)) return;
+
+    RECT wr{};
+    if (!GetWindowRect(presenterHwnd, &wr)) return;
+    const LONG ow = wr.right - wr.left;
+    const LONG oh = wr.bottom - wr.top;
+
+    struct Spot { LONG x, y; };
+    Spot spots[3] = {
+        {avoid.right + 1, wr.top},                 // right of target
+        {avoid.left - ow - 1, wr.top},             // left of target
+        {wr.left, avoid.bottom + 1},               // below target
+    };
+    for (const Spot& s : spots) {
+        RECT cand{s.x, s.y, s.x + ow, s.y + oh};
+        if (cand.left < mi.rcWork.left ||
+            cand.top < mi.rcWork.top ||
+            cand.right > mi.rcWork.right ||
+            cand.bottom > mi.rcWork.bottom)
+            continue;
+        if (cand.right > avoid.left && cand.left < avoid.right &&
+            cand.bottom > avoid.top && cand.top < avoid.bottom)
+            continue;
+        SetWindowPos(presenterHwnd, nullptr, cand.left, cand.top, 0, 0,
+                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        std::printf("[capture] presenter moved to avoid the game rect "
+                    "(Desktop Duplication sees the desktop)\n");
+        return;
+    }
+
+    // no room at full size: shrink the window (keep 16:9), the swapchain's
+    // stretch scaling covers the smaller client area. It still avoids the
+    // game's rect absolutely.
+    struct Fit { LONG free, base; };
+    Fit fits[3] = {
+        {mi.rcWork.right - avoid.right, ow},       // right strip
+        {avoid.left - mi.rcWork.left, ow},         // left strip
+        {mi.rcWork.bottom - avoid.bottom, oh},     // bottom strip
+    };
+    for (int i = 0; i < 3; ++i) {
+        const double sc = double(fits[i].free) / double(fits[i].base);
+        if (sc < 0.45 || sc >= 1.0) continue;      // tiny strips are useless
+        const LONG nw = LONG(ow * sc), nh = LONG(oh * sc);
+        LONG x, y;
+        switch (i) {
+            case 0:  x = avoid.right + 1; y = mi.rcWork.top;    break; // right
+            case 1:  x = mi.rcWork.left;  y = mi.rcWork.top;    break; // left
+            default: x = mi.rcWork.left;  y = avoid.bottom + 1; break; // bottom
+        }
+        SetWindowPos(presenterHwnd, nullptr, x, y, nw, nh,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
+        std::printf("[capture] presenter scaled to %ldx%ld in the free strip "
+                    "next to the game (keep them apart or DDA recurses)\n",
+                    nw, nh);
+        return;
+    }
+    std::printf("[capture] WARNING: no free area next to the game - "
+                "move the presenter window away or it will capture itself\n");
+}
+
 /// Desktop-duplication crop: the target's DWM extended frame bounds are
 /// physical pixels regardless of the target's DPI awareness, which makes
 /// them safe inside the physical desktop texture. (GetClientRect of a
@@ -446,6 +517,13 @@ int runApp(const AppOptions& opts)
                 return 1;
             }
             ShowWindow(presenterHwnd, SW_SHOWNORMAL);
+            if (!wgcOk) {
+                // DDA captures the desktop: never let the presenter overlap
+                // the game's CURRENT rect (after any force-res).
+                RECT cur{};
+                queryPhysicalBounds(target, &cur);
+                placeAvoidingTarget(presenterHwnd, cur);
+            }
         }
     }
 

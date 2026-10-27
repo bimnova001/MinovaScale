@@ -72,8 +72,9 @@ built-in resolution setting.
 * Sized/positioned **1:1 over the game's original rect** (captured before
   the force-res), shown with `SW_SHOWNOACTIVATE`.
 * Requires WGC (captures through occlusion). Without WGC the tool warns and
-  uses a plain side window instead — full-screen overlay presentation can't
-  be validated on this machine until the OS WGC bug is fixed.
+  uses a plain side window instead — and because DDA sees the whole desktop,
+  the side window is **auto-placed / auto-scaled into the largest free strip
+  next to the game** (`placeAvoidingTarget`) so it can never capture itself.
 
 ## Uncapped FPS (`--novsync`)
 
