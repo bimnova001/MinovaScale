@@ -18,6 +18,7 @@
 //     not injection.
 
 #include <string>
+#include <vector>
 
 namespace capture {
 
@@ -29,10 +30,21 @@ struct AppOptions {
     int         forceW         = 0;  // 0 = leave the game window size alone
     int         forceH         = 0;
     bool        overlay        = false; // direct-display presenter (needs WGC)
+    bool        uncapped       = false; // Present(0): no vsync lock (benchmark)
     float       sharpness      = -1.0f; // <0 = fsr1 default (0.2 stops)
     int         gpuIndex       = -1;    // -1 = automatic (Intel first)
     double      runSeconds     = 0.0;   // 0 = run until the target/quit
 };
+
+/// One candidate game window for the GUI picker. hwnd is opaque.
+struct WindowEntry {
+    unsigned long long hwnd;
+    unsigned long      pid;
+    std::wstring       title;
+};
+
+/// Enumerates visible, non-cloaked top-level windows of OTHER processes.
+std::vector<WindowEntry> listCaptureTargets();
 
 int runApp(const AppOptions& opts);
 

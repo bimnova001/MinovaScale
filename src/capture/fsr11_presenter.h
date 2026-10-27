@@ -34,6 +34,7 @@ public:
     void initialize(HWND presenterHwnd, unsigned outW, unsigned outH,
                     float sharpnessStops, int requestedGpuIndex,
                     const std::wstring& shaderDir,
+                    bool uncappedPresent,
                     Microsoft::WRL::ComPtr<ID3D11Device>* deviceOut);
 
     unsigned outW() const { return m_outW; }
@@ -76,6 +77,7 @@ private:
 
     unsigned m_outW = 0, m_outH = 0;
     float    m_sharpness = 0.2f;
+    bool     m_uncapped  = false;   // Present(0): no vsync lock (benchmarking)
 };
 
 } // namespace capture

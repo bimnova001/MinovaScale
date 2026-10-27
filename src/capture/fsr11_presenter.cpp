@@ -60,12 +60,14 @@ ComPtr<ID3DBlob> Fsr11Presenter::compileShader(const std::wstring& file,
 void Fsr11Presenter::initialize(HWND presenterHwnd, unsigned outW, unsigned outH,
                                 float sharpnessStops, int requestedGpuIndex,
                                 const std::wstring& shaderDir,
+                                bool uncappedPresent,
                                 ComPtr<ID3D11Device>* deviceOut)
 {
     try {
         m_outW = outW;
         m_outH = outH;
         m_sharpness = sharpnessStops;
+        m_uncapped = uncappedPresent;
 
         m_adapter = intel::AdapterSelector::pick(requestedGpuIndex);
         HRESULT hr = D3D11CreateDevice(
@@ -222,8 +224,9 @@ float4 psMain(DOut i) : SV_Target {
                         "(MINOVA_DEBUG_SHADER)\n");
         }
 
-        std::printf("[capture] FSR11 presenter ready: %ux%u | RCAS %.2f stops\n",
-                    outW, outH, m_sharpness);
+        std::printf("[capture] FSR11 presenter ready: %ux%u | RCAS %.2f stops%s\n",
+                    outW, outH, m_sharpness,
+                    m_uncapped ? " | uncapped (Present 0)" : "");
     }
     catch (const std::exception& e) {
         std::fprintf(stderr, "[capture] presenter init failed: %s\n", e.what());
@@ -296,7 +299,7 @@ void Fsr11Presenter::render(ID3D11Texture2D* srcTex, unsigned srcW, unsigned src
         c->Draw(3, 0);
         c->PSSetShaderResources(0, 1, &nullSrv);
         c->PSSetConstantBuffers(1, 1, &nullCb);
-        m_swapchain->Present(1, 0);
+        m_swapchain->Present(m_uncapped ? 0 : 1, 0);
         return;
     }
 
@@ -328,7 +331,7 @@ void Fsr11Presenter::render(ID3D11Texture2D* srcTex, unsigned srcW, unsigned src
     // clean unbind (avoids SRV-bound-as-RTV feedback hazards later)
     c->PSSetShaderResources(0, 1, &nullSrv);
 
-    m_swapchain->Present(1, 0);
+    m_swapchain->Present(m_uncapped ? 0 : 1, 0);
 }
 
 void Fsr11Presenter::shutdown()

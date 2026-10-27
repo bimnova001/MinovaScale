@@ -44,17 +44,22 @@ std::string toLowerA(std::string s)
     return s;
 }
 
-// --list-windows: print every visible top-level window title
-BOOL CALLBACK enumPrintProc(HWND hwnd, LPARAM)
+// --list-windows / GUI picker: collect every visible top-level window title
+BOOL CALLBACK enumCollectProc(HWND hwnd, LPARAM lp)
 {
+    auto* v = reinterpret_cast<std::vector<WindowEntry>*>(lp);
+    if (!IsWindowVisible(hwnd)) return TRUE;
+    int cloaked = 0;
+    DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &cloaked, sizeof(cloaked));
+    if (cloaked) return TRUE;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (pid == GetCurrentProcessId()) return TRUE;
     wchar_t buf[256] = {};
-    if (IsWindowVisible(hwnd) && GetWindowTextW(hwnd, buf, 256) > 0) {
-        int cloaked = 0;
-        DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &cloaked, sizeof(cloaked));
-        if (!cloaked)
-            std::printf("  0x%p | %s\n", reinterpret_cast<void*>(hwnd),
-                        narrowUtf8(buf).c_str());
-    }
+    if (GetWindowTextW(hwnd, buf, 256) <= 0) return TRUE;
+    v->push_back(WindowEntry{(unsigned long long)(uintptr_t)hwnd,
+                             (unsigned long)pid,
+                             std::wstring(buf)});
     return TRUE;
 }
 
@@ -268,8 +273,17 @@ void forceWindowSize(HWND hwnd, int clientW, int clientH)
 
 int listWindows()
 {
-    EnumWindows(enumPrintProc, 0);
+    for (const auto& e : listCaptureTargets())
+        std::printf("  0x%llx | %s\n", e.hwnd,
+                    narrowUtf8(e.title.c_str()).c_str());
     return 0;
+}
+
+std::vector<WindowEntry> listCaptureTargets()
+{
+    std::vector<WindowEntry> v;
+    EnumWindows(enumCollectProc, reinterpret_cast<LPARAM>(&v));
+    return v;
 }
 
 int runApp(const AppOptions& opts)
@@ -447,7 +461,8 @@ int runApp(const AppOptions& opts)
                              opts.sharpness < 0.0f ? fsr1::kDefaultSharpnessStops
                                                    : opts.sharpness,
                              opts.gpuIndex,
-                             exeDirW() + L"\\shaders", &device);
+                             exeDirW() + L"\\shaders",
+                             opts.uncapped, &device);
         // In overlay mode the side presenter window must be kept away from
         // the captured monitor area - DDA would capture the overlay itself.
         if (wgcOk) {
@@ -536,15 +551,16 @@ int runApp(const AppOptions& opts)
         presenter.render(lastTex.Get(), srcW, srcH,
                          crop.x, crop.y, crop.w, crop.h);
 
-        // fps in the title (side window only - the overlay has no caption)
-        if (!overlay) {
-            ++fpsFrames;
-            const uint64_t now = GetTickCount64();
-            if (now - fpsT0 >= 500) {
-                fpsShown = double(fpsFrames) * 1000.0 /
-                           double(now - fpsT0);
-                fpsFrames = 0;
-                fpsT0 = now;
+        // fps: newline stream for the GUI/telemetry + title in side-window mode
+        ++fpsFrames;
+        const uint64_t now = GetTickCount64();
+        if (now - fpsT0 >= 500) {
+            fpsShown = double(fpsFrames) * 1000.0 /
+                       double(now - fpsT0);
+            fpsFrames = 0;
+            fpsT0 = now;
+            std::printf("[fps] %.0f\n", fpsShown);
+            if (!overlay) {
                 wchar_t t[256];
                 std::swprintf(t, 256,
                               L"MinovaUpscaler capture | fps %.0f",

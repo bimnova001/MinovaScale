@@ -10,6 +10,7 @@
 // is that of FSR 1 (spatial), not a temporal upscaler.
 
 #include "capture_app.h"
+#include "gui_app.h"
 #include "upscaling/fsr1_upscaler.h"
 
 #include <windows.h>
@@ -35,6 +36,10 @@ void usage()
         "                  (default %.1f)\n"
         "  --gpu_id N      DXGI adapter index (default: first Intel adapter)\n"
         "  --seconds S     auto-quit after S seconds (0 = until closed)\n"
+        "  --novsync       present with Present(0) - no 60 Hz lock (for\n"
+        "                  benchmarking; capture may still be refresh-limited)\n"
+        "  --gui           open the window-picker GUI (also the default when\n"
+        "                  run with no arguments)\n"
         "  --list-windows  print visible window titles and exit\n"
         "  --help          this text\n"
         "\n"
@@ -67,6 +72,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
         return s;
     };
 
+    // No arguments (or --gui): open the window-picker GUI.
+    if (argc <= 1 || (argc == 2 && ansi(argv[1]) == "--gui"))
+        return gui::runGui();
+
     for (int i = 1; i < argc; ++i) {
         const std::string k = ansi(argv[i]);
         auto next = [&]() -> std::string {
@@ -81,6 +90,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
         else if (k == "--window")            opts.windowTitle = next();
         else if (k == "--pid")               opts.targetPid = std::stoul(next());
         else if (k == "--sharpness")         opts.sharpness = std::stof(next());
+        else if (k == "--novsync")           opts.uncapped = true;
         else if (k == "--overlay")           opts.overlay = true;
         else if (k == "--force-res") {
             opts.forceW = std::stoi(next());

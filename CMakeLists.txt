@@ -94,6 +94,8 @@ add_executable(minova_capture WIN32
     src/capture/main.cpp
     src/capture/capture_app.h
     src/capture/capture_app.cpp
+    src/gui/gui_app.h
+    src/gui/gui_app.cpp
     src/capture/wgc_source.h
     src/capture/wgc_source.cpp
     src/capture/dda_source.h
@@ -108,12 +110,14 @@ add_executable(minova_capture WIN32
 
 target_include_directories(minova_capture PRIVATE
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/capture
+    ${CMAKE_SOURCE_DIR}/src/gui
     ${XESS_INC_DIR}      # fsr1_upscaler.h uses the quality-enum header
     ${FFX_FSR_DIR}
 )
 
 target_link_libraries(minova_capture PRIVATE
-    d3d11 dxgi d3dcompiler
+    d3d11 dxgi d3dcompiler comctl32
     windowsapp     # WinRT (Windows.Graphics.Capture)
     dwmapi
 )
@@ -123,7 +127,7 @@ target_compile_definitions(minova_capture PRIVATE
 )
 
 if (MSVC)
-    target_compile_options(minova_capture PRIVATE /W4 /permissive-)
+    target_compile_options(minova_capture PRIVATE /W4 /permissive- /utf-8)
 endif()
 
 # Runtime shaders for the capture exe as well (same FSR shader pair).
