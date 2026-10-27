@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="MinovaUpscaler">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0e14"/>
+      <stop offset="1" stop-color="#0f1a26"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0 L0 0 L0 40" fill="none" stroke="#141e2b" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="320" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="320" rx="28" fill="url(#grid)"/>
+
+  <!-- left motif: window rendering at low res (chunky blocks) -->
+  <g>
+    <rect x="350" y="58" width="200" height="120" rx="12" fill="#0e1522" stroke="#243350" stroke-width="2"/>
+    <rect x="350" y="58" width="200" height="24" rx="12" fill="#131c2a"/>
+    <rect x="366" y="96" width="24" height="24" fill="#2a3947"/>
+    <rect x="396" y="96" width="24" height="24" fill="#22d3ee" opacity="0.85"/>
+    <rect x="426" y="96" width="24" height="24" fill="#253243"/>
+    <rect x="456" y="96" width="24" height="24" fill="#31414f"/>
+    <rect x="486" y="96" width="24" height="24" fill="#22303d"/>
+    <rect x="366" y="126" width="24" height="24" fill="#253243"/>
+    <rect x="396" y="126" width="24" height="24" fill="#31414f"/>
+    <rect x="426" y="126" width="24" height="24" fill="#a78bfa" opacity="0.8"/>
+    <rect x="456" y="126" width="24" height="24" fill="#22303d"/>
+    <rect x="486" y="126" width="24" height="24" fill="#2a3947"/>
+    <rect x="366" y="156" width="24" height="18" fill="#2a3947"/>
+    <rect x="396" y="156" width="24" height="18" fill="#253243"/>
+    <rect x="426" y="156" width="24" height="18" fill="#31414f"/>
+    <rect x="456" y="156" width="24" height="18" fill="#22303d"/>
+    <rect x="486" y="156" width="24" height="18" fill="#253243"/>
+  </g>
+
+  <!-- evolution chevrons -->
+  <g fill="none" stroke="url(#acc)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M576 104 L600 118 L576 132"/>
+    <path d="M606 104 L630 118 L606 132"/>
+    <path d="M636 104 L660 118 L636 132"/>
+  </g>
+
+  <!-- right motif: window at full res (fine mesh + restored edge) -->
+  <g>
+    <rect x="700" y="48" width="230" height="140" rx="12" fill="#0e1522" stroke="#243350" stroke-width="2"/>
+    <rect x="700" y="48" width="230" height="24" rx="12" fill="#131c2a"/>
+    <g stroke="#29405c" stroke-width="1">
+      <path d="M712 84 H918 M712 98 H918 M712 112 H918 M712 126 H918 M712 140 H918 M712 154 H918 M712 168 H918 M712 182 H918"/>
+      <path d="M724 84 V182 M740 84 V182 M756 84 V182 M772 84 V182 M788 84 V182 M804 84 V182 M820 84 V182 M836 84 V182 M852 84 V182 M868 84 V182 M884 84 V182 M900 84 V182"/>
+    </g>
+    <path d="M724 182 L860 84" stroke="url(#acc)" stroke-width="4" fill="none"/>
+  </g>
+
+  <!-- title + tagline -->
+  <text x="640" y="238" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="62" font-weight="700" fill="#eaf2ff">MinovaUpscaler</text>
+  <text x="640" y="282" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24" fill="#7d93ad">Render at 720p · Reconstruct to 1080p · Intel Iris Xe · XeSS / AMD FSR 1</text>
+</svg>

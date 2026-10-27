@@ -1,55 +1,80 @@
-# MinovaScale — DLSS-style upscaling PoC for Intel Iris Xe laptops (Phase 1)
+<div align="center">
+  <img src="docs/logo.svg" width="100%" alt="MinovaUpscaler">
+</div>
 
-Lowers the internal render resolution (e.g. 720p) and reconstructs to 1080p with
-**Intel XeSS-SR**, with honest A/B modes (`native`, `bilinear`, `xess`) and GPU timing
-telemetry. True render-resolution upscaling — the scene really renders at the lower
-internal resolution with temporal jitter + motion vectors + depth. No DLL injection, no
-anti-cheat bypass, no screenshot filtering.
+# MinovaUpscaler
 
-See `agent.md` (continuation notes for other agents), `docs/phase1_report.md` (verified
-results), `info.md` (original mission).
+Universal Intel iGPU game upscaler for old laptops (Iris Xe class):
+**render low → reconstruct high**, honestly. Two tools in one repo:
 
-## Build (Windows, Visual Studio 2022, x64)
+1. **`minova_poc`** — scripted 3D scene benchmark with XeSS-SR and AMD FSR 1
+   behind the same quality presets and GPU-timing telemetry
+   (true render-resolution upscaling: the scene really renders at the
+   internal resolution with jitter/motion vectors/depth for XeSS).
+2. **`minova_capture`** (+ GUI) — capture-based upscaler for real games:
+   shrink the game window to 720p-class (`--force-res`, plain Win32 window
+   management), capture its output (WGC / Desktop Duplication), and
+   reconstruct to 1080p with FSR 1 in a click-through overlay or a side
+   window. No injection, no game binary touched — see
+   [docs/rules.md](docs/rules.md).
+
+<p align="center">
+  <img src="docs/pipeline.svg" width="760" alt="capture pipeline">
+</p>
+
+## Quick start (Windows, VS 2022, x64)
 
 ```powershell
 cmake -S . -B build
 cmake --build build --config Release
+
+# capture upscaler GUI: window picker + force-res + overlay + uncapped fps
+.\build\Release\minova_capture.exe
+
+# scripted PoC benchmark (XeSS path, 8 seconds, telemetry CSV)
 .\build\Release\minova_poc.exe --mode xess --seconds 8
 ```
 
-Run from the build directory (`build\Release\` or `build\Debug\`) — `libxess.dll`,
-`libxell.dll` and `shaders\` are copied next to the exe by the build.
+Run from the build directory — `libxess.dll`, `libxell.dll` and `shaders\`
+are copied next to the exe by the build.
 
-## Usage
+## Documentation
 
-```
-minova_poc.exe [--mode xess|bilinear|native]
-               [--quality ultra_performance|performance|balanced|quality|
-                          ultra_quality|ultra_quality_plus|aa]
-               [--width W --height H]      # output resolution (default 1920x1080)
-               [--gpu_id N] [--csv PATH] [--seconds S] [--list-adapters] [--help]
-```
+| file | contents |
+|---|---|
+| [docs/capture_pipeline.md](docs/capture_pipeline.md) | Phase 3 architecture: WGC/DDA sources, one-device D3D11 EASU→RCAS presenter, crop math (DWM bounds), `--force-res`, `--overlay`, `--novsync`, CLI reference, verification log |
+| [docs/gui.md](docs/gui.md) | GUI usage, child-process isolation, **how to benchmark with uncapped FPS**, troubleshooting |
+| [docs/machine_findings.md](docs/machine_findings.md) | OS/driver quirks hit while building (WGC AV on Insider 26200, PrintWindow hang, minimized-target geometry, D3D11 flip index quirk…) |
+| [docs/rules.md](docs/rules.md) | hard rules: what we may/may not touch, why driver-level forcing is out of scope for V1, honesty requirements |
+| [docs/phase1_report.md](docs/phase1_report.md) | XeSS-SR PoC — verified results and timings |
+| [docs/phase2_report.md](docs/phase2_report.md) | FSR 1 in-app — verified results and timings |
+| [info.md](info.md) | original mission brief and project constraints |
+| [agent.md](agent.md) | continuation notes for the next agent |
 
-Window hotkeys: `T` cycle mode · `P` pause · `Esc` quit.
+## Status snapshot
 
-## Status on this machine (driver 32.0.101.7092)
+* ✅ **Phase 1** — XeSS-SR PoC end-to-end: scene 960×540 → 1920×1080
+  (balanced), telemetry CSV, auto-recovery from one-time JIT device-hung.
+* ✅ **Phase 2** — FSR 1 in-app (EASU+RCAS): 4/4 × 20 s stable,
+  ~6.5 ms upscale GPU @1080p; `T` cycles xess → bilinear → fsr → native.
+* ✅ **Phase 3** — capture upscaler: WGC + DDA backends, D3D11 FSR presenter,
+  window/`--pid` targeting, `--force-res 1280 720`, click-through overlay
+  mode, uncapped present; soak 30 s @60 fps verified on the dev machine.
+* ⏳ Needs a non-Insider OS build to demo **overlay** visually (WGC is
+  currently broken machine-wide on 26200.9457; side-window mode works today).
 
-* `native`, `bilinear`, telemetry CSV, window/keys — **verified working** (60 fps vsync).
-* `xess` — **runs end-to-end**: scene rendered at 960x540 (balanced), XeSS reconstructs
-  to 1920x1080; verified visually and by telemetry (see `docs/phase1_report.md`).
-* `fsr` — **new in Phase 2**: AMD FSR 1 (EASU+RCAS) spatial upscale from the same
-  quality-preset internal resolution. 4/4 × 20 s stable, ~6.5 ms upscale GPU @ 1080p,
-  no JIT/hang risk. See `docs/phase2_report.md`. Press `T` to cycle
-  xess → bilinear → fsr → native.
-* Known rough edge (handled): rare early-run `DXGI_ERROR_DEVICE_HUNG` during the
-  one-time XeSS JIT burst. The app now **auto-recovers** (backoff 2/4/8 s, recreate
-  device + XeSS context, max 3 attempts) — verified 4/4 completed 25 s runs. Together
-  with registry TdrDelay=10 s (admin + reboot), this is effectively invisible.
-* Debug build (with the D3D12 debug layer) is unreliable with XeSS on this machine —
-  test in Release.
+## Honest play
+
+Capture latency ≈1–2 frames. FSR 1 is spatial-only — quality below a
+temporal upscaler on animation. The game always renders its own frames; we
+never claim DLSS-class or "free 4K". Full rules:
+[docs/rules.md](docs/rules.md).
 
 ## Third-party / licenses
 
-* Intel XeSS SDK 2.0.2 — vendored, unmodified, under `third_party/xess/`
-  (Intel Simplified Software License: **binary-only redistribution** — keep
+* **Intel XeSS SDK 2.0.2** — vendored unmodified under `third_party/xess/`
+  (Intel Simplified Software License: binary-only redistribution — keep
   `third_party/xess/LICENSE.txt` when shipping).
+* **AMD FidelityFX-FSR 1** — vendored headers under
+  `third_party/FidelityFX-FSR/` (MIT, © 2021 Advanced Micro Devices, Inc.);
+  compiled into our shaders, never modified.
